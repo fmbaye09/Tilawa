@@ -33,11 +33,16 @@ import {
   Type,
   Palette,
   Eye,
+  X,
+  Link,
+  FileText,
 } from "lucide-react";
 
 import bgMosque from "../assets/bg-mosque.jpg";
 import bgDesert from "../assets/bg-desert.jpg";
 import bgPattern from "../assets/bg-pattern.jpg";
+import { LOCAL_FOLDER_BACKGROUNDS } from "../lib/backgrounds.gen";
+import { fetchGithubBackgrounds } from "../lib/github-backgrounds";
 import {
   drawFrame,
   type FrameData,
@@ -186,6 +191,13 @@ const PRESET_BACKGROUNDS: BackgroundItem[] = [
     type: "video",
     src: "https://assets.mixkit.co/videos/preview/mixkit-waves-in-the-water-1164-large.mp4",
   },
+  {
+    id: "cloudinary_video_1",
+    label: "Décor Cloudinary 1",
+    type: "video",
+    src: "https://res.cloudinary.com/p9sc3kd4/video/upload/v1787473056/Pinterest_video_1337074889534215_1337074889534215.mp4",
+  },
+  ...LOCAL_FOLDER_BACKGROUNDS,
 ];
 
 const RATIOS = [
@@ -334,6 +346,24 @@ function StudioApp() {
     staleTime: Infinity,
   });
 
+  const githubBackgrounds = useQuery({
+    queryKey: ["github-backgrounds"],
+    queryFn: fetchGithubBackgrounds,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Automatically merge GitHub background videos from https://github.com/fmbaye09/Tilawa-videos
+  useEffect(() => {
+    if (githubBackgrounds.data && githubBackgrounds.data.length > 0) {
+      setBackgroundList((prevList) => {
+        const existingSrcs = new Set(prevList.map((item) => item.src));
+        const newFromGithub = githubBackgrounds.data!.filter((item) => !existingSrcs.has(item.src));
+        if (newFromGithub.length === 0) return prevList;
+        return [...newFromGithub, ...prevList];
+      });
+    }
+  }, [githubBackgrounds.data]);
+
   const selectedSurah = useMemo(() => {
     return surahs.data?.find((s) => s.number === surahNumber) ?? null;
   }, [surahs.data, surahNumber]);
@@ -429,27 +459,33 @@ function StudioApp() {
     }
   }, [selectedBgId, backgroundList]);
 
-  // Handle custom image/video file upload
+  // Handle custom image/video file upload (supports multiple selection by lot)
   const handleCustomMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    const isVideo = file.type.startsWith("video/");
-    const isImage = file.type.startsWith("image/");
-    if (!isVideo && !isImage) return;
+    const newItems: BackgroundItem[] = [];
+    files.forEach((file, index) => {
+      const isVideo = file.type.startsWith("video/");
+      const isImage = file.type.startsWith("image/");
+      if (!isVideo && !isImage) return;
 
-    const objectUrl = URL.createObjectURL(file);
-    const newBg: BackgroundItem = {
-      id: `custom_${Date.now()}`,
-      label: file.name.length > 12 ? `${file.name.slice(0, 10)}…` : file.name,
-      type: isVideo ? "video" : "image",
-      src: objectUrl,
-      isCustom: true,
-    };
+      const objectUrl = URL.createObjectURL(file);
+      newItems.push({
+        id: `custom_${Date.now()}_${index}`,
+        label: file.name.length > 14 ? `${file.name.slice(0, 12)}…` : file.name,
+        type: isVideo ? "video" : "image",
+        src: objectUrl,
+        isCustom: true,
+      });
+    });
 
-    setBackgroundList((prev) => [newBg, ...prev]);
-    setSelectedBgId(newBg.id);
-    setBgTab("custom");
+    if (newItems.length > 0) {
+      setBackgroundList((prev) => [...newItems, ...prev]);
+      setSelectedBgId(newItems[0].id);
+      setBgTab("custom");
+      toast.success(`${newItems.length} fichier(s) média importé(s) !`);
+    }
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -1919,6 +1955,7 @@ function StudioApp() {
                           <input
                             ref={fileInputRef}
                             type="file"
+                            multiple
                             accept="image/*,video/*"
                             onChange={handleCustomMediaUpload}
                             className="hidden"
