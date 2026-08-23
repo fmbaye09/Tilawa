@@ -266,6 +266,15 @@ function StudioApp() {
 
   const bgMediaElementRef = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const logoImgRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = "/favicon.svg";
+    img.onload = () => {
+      logoImgRef.current = img;
+    };
+  }, []);
 
   // Verse Selection via Checkboxes
   const [selectedAyahs, setSelectedAyahs] = useState<number[]>([1, 2, 3, 4, 5, 6, 7]);
@@ -302,6 +311,12 @@ function StudioApp() {
   const [playing, setPlaying] = useState(false);
   const [recording, setRecording] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [completedVideoModal, setCompletedVideoModal] = useState<{
+    url: string;
+    fileName: string;
+    surahName: string;
+    duration: number;
+  } | null>(null);
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -600,6 +615,7 @@ function StudioApp() {
       ayahLabel: current ? `آية ${current.numberInSurah}` : "",
       progress: frameRef.current.progress,
       ayahProgress: frameRef.current.ayahProgress,
+      logoImg: logoImgRef.current,
       styles: {
         arabicFont,
         translationFont,
@@ -740,8 +756,27 @@ function StudioApp() {
       void saveVideoBlob(videoId, blob).catch(() => {
         toast.error("La vidéo est prête, mais n’a pas pu être conservée dans l’historique local.");
       });
-      toast.success("Vidéo terminée", {
-        description: "Votre vidéo est prête à être téléchargée.",
+
+      // Trigger completion popup modal
+      setCompletedVideoModal({
+        url: videoUrl,
+        fileName,
+        surahName: selectedSurah?.englishName ?? `Sourate ${surahNumber}`,
+        duration: totalVideoDuration,
+      });
+
+      // Trigger native browser notification if permitted
+      if (typeof window !== "undefined" && "Notification" in window) {
+        if (Notification.permission === "granted") {
+          new Notification("Tilawa Studio 🎉", {
+            body: `Votre vidéo pour ${selectedSurah?.englishName ?? "la récitation"} est prête !`,
+            icon: "/favicon.svg",
+          });
+        }
+      }
+
+      toast.success("Vidéo terminée 🎉", {
+        description: "Votre vidéo HD est prête à être téléchargée !",
         action: {
           label: "Télécharger",
           onClick: () => {
@@ -753,6 +788,15 @@ function StudioApp() {
         },
       });
     };
+    // Always reset audio, verse index, frame progress, and background video to the beginning (0:00)
+    audio.pause();
+    audio.currentTime = 0;
+    if (bgMediaElementRef.current instanceof HTMLVideoElement) {
+      bgMediaElementRef.current.currentTime = 0;
+    }
+    frameRef.current.progress = 0;
+    frameRef.current.ayahProgress = 0;
+
     recorderRef.current = recorder;
     recorder.start();
 
@@ -2100,6 +2144,63 @@ function StudioApp() {
 
       {/* Studio Audio Player */}
       <audio ref={audioRef} crossOrigin="anonymous" onEnded={handleEnded} className="hidden" />
+
+      {/* Completion Popup Modal */}
+      {completedVideoModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md animate-step-in">
+          <div className="relative w-full max-w-md rounded-3xl border border-primary/40 bg-card p-6 shadow-2xl space-y-5 text-center">
+            <button
+              type="button"
+              onClick={() => setCompletedVideoModal(null)}
+              className="absolute right-4 top-4 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/20 text-primary shadow-inner">
+              <Sparkles className="h-8 w-8 animate-pulse" />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-extrabold text-foreground">🎉 Génération terminée !</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Votre vidéo HD pour{" "}
+                <strong className="text-foreground">{completedVideoModal.surahName}</strong> (
+                {formatDuration(completedVideoModal.duration)}) est prête.
+              </p>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-border/60 bg-black/60 shadow-lg">
+              <video
+                src={completedVideoModal.url}
+                controls
+                autoPlay
+                className="max-h-[260px] w-full object-contain"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 pt-1">
+              <a
+                href={completedVideoModal.url}
+                download={completedVideoModal.fileName}
+                onClick={() => setCompletedVideoModal(null)}
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-extrabold text-primary-foreground shadow-xl transition hover:brightness-110 active:scale-95"
+              >
+                <Download className="h-4 w-4 stroke-[2.5]" />
+                Télécharger la Vidéo WebM HD
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setCompletedVideoModal(null)}
+                className="w-full rounded-xl py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

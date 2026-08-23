@@ -40,7 +40,25 @@ export type FrameData = {
   progress: number;
   ayahProgress?: number; // 0 to 1 progress within current ayah for animation effects
   styles?: TextStyleOptions;
+  logoImg?: HTMLImageElement | null;
 };
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
 
 function wrap(
   ctx: CanvasRenderingContext2D,
@@ -271,19 +289,88 @@ export function drawFrame(
   ctx.restore();
 
   // Footer (Progress Bar & Ayah Label)
-  if (styles.showFooter !== false) {
-    const barY = height - height * 0.075;
-    ctx.fillStyle = "rgba(255,255,255,0.18)";
-    ctx.fillRect(pad, barY, maxWidth, 5 * unit);
-    ctx.fillStyle = "#e2be74";
-    ctx.fillRect(pad, barY, maxWidth * Math.min(Math.max(data.progress, 0), 1), 5 * unit);
+  const barY = height - height * 0.065;
 
-    ctx.font = `${24 * unit}px Cairo, sans-serif`;
+  if (styles.showFooter !== false) {
+    ctx.fillStyle = "rgba(255,255,255,0.18)";
+    ctx.fillRect(pad, barY, maxWidth, 4 * unit);
+    ctx.fillStyle = "#e2be74";
+    ctx.fillRect(pad, barY, maxWidth * Math.min(Math.max(data.progress, 0), 1), 4 * unit);
+
+    ctx.font = `${22 * unit}px Cairo, sans-serif`;
     ctx.textAlign = "left";
     ctx.fillStyle = "rgba(255,255,255,0.7)";
-    ctx.fillText(data.reciter, pad, barY - 24 * unit);
+    ctx.fillText(data.reciter, pad, barY - 18 * unit);
     ctx.textAlign = "right";
     ctx.fillStyle = "rgba(226, 190, 116, 0.9)";
-    ctx.fillText(data.ayahLabel, width - pad, barY - 24 * unit);
+    ctx.fillText(data.ayahLabel, width - pad, barY - 18 * unit);
   }
+
+  // Watermark — Centered below the progress bar ("en dessous de la barre")
+  ctx.save();
+
+  const arabicFontStr = `bold ${15 * unit}px Amiri, serif`;
+  const latinFontStr = `600 ${11 * unit}px Inter, sans-serif`;
+
+  ctx.font = arabicFontStr;
+  const arabicW = ctx.measureText("تلاوة").width;
+
+  ctx.font = latinFontStr;
+  const latinW = ctx.measureText("Tilawa Studio").width;
+
+  const iconSize = 18 * unit;
+  const iconGap = 7 * unit;
+  const wordGap = 7 * unit;
+  const innerPadX = 12 * unit;
+
+  const totalContentW = iconSize + iconGap + arabicW + wordGap + latinW;
+  const wmW = totalContentW + innerPadX * 2;
+  const wmH = 30 * unit;
+  const wmX = (width - wmW) / 2;
+  const wmY = styles.showFooter !== false ? barY + 10 * unit : height - 42 * unit;
+
+  // Snug Capsule Background
+  ctx.fillStyle = "rgba(4, 18, 13, 0.75)";
+  roundRect(ctx, wmX, wmY, wmW, wmH, wmH / 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(243, 208, 130, 0.5)";
+  ctx.lineWidth = 1.2 * unit;
+  ctx.stroke();
+
+  let curX = wmX + innerPadX;
+  const iconY = wmY + (wmH - iconSize) / 2;
+
+  const logoImg = data.logoImg;
+  if (logoImg && logoImg.complete && logoImg.naturalWidth) {
+    ctx.drawImage(logoImg, curX, iconY, iconSize, iconSize);
+  } else {
+    // Vector Fallback Crescent Icon
+    ctx.fillStyle = "#f3d082";
+    ctx.beginPath();
+    ctx.arc(curX + iconSize * 0.45, iconY + iconSize * 0.5, iconSize * 0.42, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(4, 18, 13, 0.75)";
+    ctx.beginPath();
+    ctx.arc(curX + iconSize * 0.58, iconY + iconSize * 0.42, iconSize * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  curX += iconSize + iconGap;
+
+  // Calligraphy "تلاوة"
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.font = arabicFontStr;
+  ctx.fillStyle = "#f3d082";
+  ctx.fillText("تلاوة", curX, wmY + wmH / 2);
+
+  curX += arabicW + wordGap;
+
+  // Brand "Tilawa Studio"
+  ctx.font = latinFontStr;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+  ctx.fillText("Tilawa Studio", curX, wmY + wmH / 2);
+
+  ctx.restore();
 }
