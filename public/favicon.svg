@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f5132" />
+      <stop offset="100%" stop-color="#062e1c" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f3d082" />
+      <stop offset="100%" stop-color="#c69b3f" />
+    </linearGradient>
+  </defs>
+  <!-- Background Rounded Rect -->
+  <rect width="512" height="512" rx="128" fill="url(#bg)" />
+  <!-- Open Book Lines -->
+  <path d="M256 170 C210 140, 120 145, 70 175 V350 C120 320, 210 315, 256 345 C302 315, 392 320, 442 350 V175 C392 145, 302 140, 256 170 Z" fill="none" stroke="url(#gold)" stroke-width="26" stroke-linejoin="round" stroke-linecap="round" />
+  <!-- Center spine line -->
+  <line x1="256" y1="170" x2="256" y2="345" stroke="url(#gold)" stroke-width="20" stroke-linecap="round" />
+  <!-- Inner Pages Accent -->
+  <path d="M95 200 C140 175, 210 170, 245 190 M417 200 C372 175, 302 170, 267 190" fill="none" stroke="#ffffff" stroke-opacity="0.4" stroke-width="12" stroke-linecap="round" />
+  <!-- Crescent Moon & Star -->
+  <path d="M256 95 A28 28 0 1 0 284 123 A22 22 0 1 1 256 95 Z" fill="url(#gold)" />
+  <polygon points="280,95 284,103 293,103 286,108 289,116 280,111 271,116 274,108 267,103 276,103" fill="url(#gold)" />
+</svg>
