@@ -704,14 +704,17 @@ function StudioApp() {
     }
     await audioGraphRef.current.ctx.resume();
 
-    const stream = canvas.captureStream(30);
+    const stream = canvas.captureStream(60);
     for (const track of audioGraphRef.current.dest.stream.getAudioTracks()) {
       stream.addTrack(track);
     }
     const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
       ? "video/webm;codecs=vp9,opus"
       : "video/webm";
-    const recorder = new MediaRecorder(stream, { mimeType: mime });
+    const recorder = new MediaRecorder(stream, {
+      mimeType: mime,
+      videoBitsPerSecond: 12_000_000,
+    });
     const chunks: BlobPart[] = [];
     recorder.ondataavailable = (e) => {
       if (e.data.size) chunks.push(e.data);
